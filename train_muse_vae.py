@@ -223,16 +223,7 @@ def parse_args():
         help="path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)",
     )
     parser.add_argument(
-        "--optimizer",
-        type=str,
-        default="Lion",
-        help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Lion",
-    )
-    parser.add_argument(
-        "--weight_decay",
-        type=float,
-        default=0.0,
-        help="Optimizer weight_decay to use. Default: 0.0",
+        "--hugging-face-oath",type=str,default=None,
     )
     # Parse the argument
     return parser.parse_args()
@@ -244,6 +235,7 @@ def preprocess_webdataset(args, image):
 
 def main():
     args = parse_args()
+    # tracking / optimising training over multi-thread stuff
     accelerator = get_accelerator(
         log_with=args.log_with,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
@@ -251,8 +243,10 @@ def main():
         logging_dir=args.logging_dir,
     )
     if accelerator.is_main_process:
+        # only init the tracker if this is the main thread
         accelerator.init_trackers("muse_vae", config=vars(args))
     if args.webdataset is not None:
+        # a cool way to w/r data from dataset, can ignore for now
         import webdataset as wds
 
         dataset = (
@@ -260,6 +254,7 @@ def main():
         )
         dataset = dataset.map(lambda image: preprocess_webdataset(args, image))
     elif args.train_data_dir:
+        # TODO: probably need to rewrite
         dataset = get_dataset_from_dataroot(
             args.train_data_dir,
             image_column=args.image_column,
@@ -267,9 +262,11 @@ def main():
             save_path=args.dataset_save_path,
         )
     elif args.dataset_name:
-        dataset = load_dataset(args.dataset_name)["train"]
+        dataset = load_dataset(args.dataset_name, use_auth_token=args.hugging_face_oath)["train"]
 
     vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
+    # only if using pretrained VQGanVAE from taming-transformers repo https://github.com/CompVis/taming-transformers#overview-of-pretrained-models
+    # can consider using the ImageNet weights
     if args.taming_model_path:
         print("Loading Taming VQGanVAE")
         vae = VQGanVAETaming(
@@ -279,6 +276,7 @@ def main():
         args.num_tokens = vae.codebook_size
         args.seq_len = vae.get_encoded_fmap_size(args.image_size) ** 2
     elif args.resume_path:
+        # only works with VQGanVAE model, potentially diff structure as VQGanVAETaming
         accelerator.print(f"Resuming VAE from: {args.resume_path}")
         vae.load(args.resume_path)
 
