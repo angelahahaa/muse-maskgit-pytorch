@@ -21,12 +21,14 @@ import argparse
 import torch.nn as nn
 from accelerate import init_empty_weights
 
-def parse_args():
+def get_parser():
     # Create the parser
     parser = argparse.ArgumentParser()
+    # data source 
     parser.add_argument(
         "--webdataset", type=str, default=None, help="Path to webdataset if using one."
     )
+    # save options 
     parser.add_argument(
         "--only_save_last_checkpoint",
         action="store_true",
@@ -164,13 +166,13 @@ def parse_args():
         help="Gradient Accumulation.",
     )
     parser.add_argument(
-        "--save_results_every",
+        "--save-results-every",
         type=int,
         default=100,
         help="Save results every this number of steps.",
     )
     parser.add_argument(
-        "--save_model_every",
+        "--save-model-every",
         type=int,
         default=500,
         help="Save the model every this number of steps.",
@@ -202,7 +204,7 @@ def parse_args():
     )
     parser.add_argument(
         "--optimizer",type=str,
-        default='Lion',
+        default='Adam',
         help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Adam",
     )
     parser.add_argument(
@@ -223,10 +225,13 @@ def parse_args():
         help="path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)",
     )
     parser.add_argument(
-        "--hugging-face-oath",type=str,default=None,
+        "--huggingface-oath",type=str,default=None,
+    )
+    parser.add_argument(
+        "--huggingface-cache-dir",type=str,default=None,
     )
     # Parse the argument
-    return parser.parse_args()
+    return parser
 
 
 def preprocess_webdataset(args, image):
@@ -234,7 +239,7 @@ def preprocess_webdataset(args, image):
 
 
 def main():
-    args = parse_args()
+    args = get_parser().parse_args()
     # tracking / optimising training over multi-thread stuff
     accelerator = get_accelerator(
         log_with=args.log_with,
@@ -262,7 +267,7 @@ def main():
             save_path=args.dataset_save_path,
         )
     elif args.dataset_name:
-        dataset = load_dataset(args.dataset_name, use_auth_token=args.hugging_face_oath)["train"]
+        dataset = load_dataset(args.dataset_name, use_auth_token=args.huggingface_oath, cache_dir=args.huggingface_cache_dir)["train"]
 
     vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
     # only if using pretrained VQGanVAE from taming-transformers repo https://github.com/CompVis/taming-transformers#overview-of-pretrained-models
