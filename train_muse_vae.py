@@ -21,7 +21,9 @@ import argparse
 import torch.nn as nn
 from accelerate import init_empty_weights
 
+import time
 def get_parser():
+    now =f"{time.time():.0f}"
     # Create the parser
     parser = argparse.ArgumentParser()
     # data source 
@@ -106,7 +108,7 @@ def get_parser():
     parser.add_argument(
         "--log_with",
         type=str,
-        default="wandb",
+        default="tensorboard",
         help=(
             'The integration to report the results and logs to. Supported platforms are `"tensorboard"`'
             ' (default), `"wandb"` and `"comet_ml"`. Use `"all"` to report to all integrations.'
@@ -127,13 +129,13 @@ def get_parser():
     parser.add_argument(
         "--results_dir",
         type=str,
-        default="results",
+        default=os.path.join("results",now),
         help="Path to save the training samples and checkpoints",
     )
     parser.add_argument(
         "--logging_dir",
         type=str,
-        default="results/logs",
+        default=os.path.join("results", now, "logs"),
         help="Path to log the losses and LR",
     )
 
