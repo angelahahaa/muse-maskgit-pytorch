@@ -106,16 +106,17 @@ def get_optimizer(use_8bit_adam, optimizer, parameters, lr, weight_decay):
             raise ImportError("Please install bitsandbytes to use 8-bit optimizers. You can do so by running `pip install "
                         "bitsandbytes` | Defaulting to non 8-bit equivalent...")
     # optimizers
+    betas = (0.9, 0.96)
     if optimizer == "Adam":
         if use_8bit_adam:
-            optim = bnb.optim.Adam8bit(parameters, lr=lr, weight_decay=weight_decay)
+            optim = bnb.optim.Adam8bit(parameters, lr=lr, weight_decay=weight_decay, betas=betas)
         else:
-            optim = Adam(parameters, lr=lr, weight_decay=weight_decay)
+            optim = Adam(parameters, lr=lr, weight_decay=weight_decay, betas=betas)
     elif optimizer == "AdamW":
         if use_8bit_adam:
-            optim = bnb.optim.AdamW8bit(parameters, lr=lr, weight_decay=weight_decay)
+            optim = bnb.optim.AdamW8bit(parameters, lr=lr, weight_decay=weight_decay, betas=betas)
         else:
-            optim = AdamW(parameters, lr=lr, weight_decay=weight_decay)
+            optim = AdamW(parameters, lr=lr, weight_decay=weight_decay, betas=betas)
 
     elif optimizer == "Lion":
         optim = Lion(parameters, lr=lr, weight_decay=weight_decay)
@@ -196,7 +197,7 @@ class BaseAcceleratedTrainer(nn.Module):
         self.optim.load_state_dict(pkg["optim"])
         return pkg
 
-    def log_validation_images(self, images, step, prompts=None):
+    def log_validation_images(self, images, step, prompts=None, name='validation'):
         if prompts:
             self.print(f"Logging with prompts: {prompts}")
         if self.validation_image_scale != 1:
@@ -211,12 +212,12 @@ class BaseAcceleratedTrainer(nn.Module):
             if tracker.name == "tensorboard":
                 np_images = np.stack([np.asarray(img) for img in images])
                 tracker.writer.add_images(
-                    "validation", np_images, step, dataformats="NHWC"
+                    name, np_images, step, dataformats="NHWC"
                 )
             if tracker.name == "wandb":
                 tracker.log(
                     {
-                        "validation": [
+                        name: [
                             wandb.Image(
                                 image, caption="" if not prompts else prompts[i]
                             )
